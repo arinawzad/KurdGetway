@@ -15,15 +15,15 @@ One stable API across providers — FastPay today, FIB coming soon.
 
 ---
 
-> ⚠️ **Unofficial.** Kurdgetway is not affiliated with or endorsed by FastPay, FIB, or any other wallet provider. It speaks to public-facing APIs by reverse-engineering their iOS clients. Use it on accounts you own and at your own risk. Nothing here circumvents authentication — you still need valid credentials.
+It also ships with a **browser-based tester UI** at `/` — sign in, view balances, page through transactions, and watch your inbox for incoming credits, all without writing a line of frontend code.
+
+> ⚠️ **Unofficial.** Kurdgetway is not affiliated with or endorsed by FastPay, FIB, or any other wallet provider. It speaks to public-facing APIs by reverse-engineering the providers' mobile clients. Use it on accounts you own and at your own risk. Nothing here circumvents authentication — you still need valid credentials.
 
 ## What is this?
 
 Each Iraqi mobile wallet ships its own SDK, headers, envelope format, error vocabulary, and pagination quirks. If you want to build *one* app that works against multiple wallets, you spend most of your time just normalizing inputs and outputs.
 
 Kurdgetway is a thin Laravel-based gateway that does that normalization for you. You point it at a wallet provider (currently **FastPay**), and it gives you a single, predictable HTTP+JSON API for sign-in, profile, transaction history, and payments. New providers are added by implementing one PHP interface — the public surface stays the same.
-
-It also ships with a **browser-based tester UI** at `/` — sign in, view balances, page through transactions, and watch your inbox for incoming credits, all without writing a line of frontend code.
 
 ## Features
 
@@ -81,7 +81,7 @@ FASTPAY_API_VERSION=v1
 FASTPAY_TOKEN=
 
 # Required for sign-in (unauthenticated endpoint validates a device fingerprint).
-# Capture these once from the iOS app's network traffic.
+# Capture these once from the mobile app's network traffic.
 FASTPAY_DEVICE_ID=
 FASTPAY_SIGNATURE_ID=
 FASTPAY_COOKIE=
@@ -94,7 +94,7 @@ FASTPAY_LANGUAGE=en
 FASTPAY_TIMEOUT=15
 ```
 
-> **Why the device-fingerprint vars?** FastPay accepts the Bearer token alone for authenticated endpoints (`/me`, `/transactions`, `/pay`). The unauthenticated **sign-in** endpoint additionally validates a device fingerprint — leaving these blank returns `INVALID_ARGUMENT`. Once you have a working token, you can run the gateway in `/me`-only mode without them.
+> **Why the device-fingerprint vars?** FastPay accepts the Bearer token alone for authenticated endpoints (`/me`, `/transactions`, `/pay`). The unauthenticated **sign-in** endpoint additionally validates a device fingerprint — leaving these blank returns `INVALID_ARGUMENT`. Capture them once from the mobile app's network traffic. Once you have a working token, you can run the gateway in `/me`-only mode without them.
 
 ## API reference
 
@@ -147,16 +147,16 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
   "ok": true,
   "data": {
     "provider": "fastpay",
-    "identifier": "446869",
-    "first_name": "Ari",
-    "last_name": "Nawzad",
-    "mobile_number": "+9647509646550",
-    "email": "you@example.com",
+    "identifier": "123456",
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "mobile_number": "+964750xxxxxxx",
+    "email": "jane@example.com",
     "profile_thumbnail": "https://...",
     "balances": [
       {
         "account_type": "Fastpay Savings Account",
-        "account_number": "PASULA092530",
+        "account_number": "XXXXXXXXXXXX",
         "currency": "IQD",
         "amount": "2,059"
       }
@@ -185,7 +185,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
     "has_next_page": true,
     "transactions": [
       {
-        "transaction_id": "B1E1J2B004",
+        "transaction_id": "XXXXXXXXXX",
         "title": "You Received Money",
         "direction": "credit",
         "nature": "Transfer",
@@ -193,7 +193,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
         "amount": "18,180",
         "currency": "IQD",
         "created_at": "26 April 2026 09:27 AM",
-        "source": { "name": "FIB MR", "mobile_number": "+9648800000004" },
+        "source": { "name": "FIB MR", "mobile_number": "+964880xxxxxxx" },
         "destination": null,
         "icon": "https://.../receive.png",
         "color": "#03EBA3",
@@ -358,4 +358,4 @@ In particular, **do not commit real tokens, device IDs, signatures, or cookies**
 ## Acknowledgements
 
 - Built on the [Laravel](https://laravel.com) framework.
-- Tested against the real iOS FastPay client's network traffic. Thanks to the open-source community of curious developers documenting wallet APIs in the region.
+- Tested against real FastPay client network traffic. Thanks to the open-source community of curious developers documenting wallet APIs in the region.
