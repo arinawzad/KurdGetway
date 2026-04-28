@@ -63,6 +63,49 @@ class WalletController extends Controller
         }
     }
 
+    /**
+     * POST /api/wallet/{provider}/verify-otp
+     *
+     * Body (JSON or form):
+     *   mobile_number     required, same value as on /signin
+     *   password          required, same value as on /signin
+     *   device_id         required, same UUID used on /signin
+     *   otp               required, 6-digit numeric string
+     *   otp_session_id    optional, the temporary token returned from /signin
+     *                     when OTP was triggered. The provider forwards it as
+     *                     `Authorization: Bearer ...` to the upstream verify
+     *                     endpoint when needed.
+     */
+    public function verifyOtp(Request $request, string $provider): JsonResponse
+    {
+        $validated = $request->validate([
+            'mobile_number'  => ['required', 'string'],
+            'password'       => ['required', 'string'],
+            'device_id'      => ['required', 'string', 'min:8'],
+            'otp'            => ['required', 'string', 'regex:/^\d{4,8}$/'],
+            'otp_session_id' => ['sometimes', 'nullable', 'string'],
+        ]);
+
+        try {
+            $result = $this->wallets->provider($provider)->verifyOtp(
+                mobileNumber:    $validated['mobile_number'],
+                password:        $validated['password'],
+                deviceId:        $validated['device_id'],
+                otp:             $validated['otp'],
+                otpSessionToken: $validated['otp_session_id'] ?? null,
+            );
+
+            return response()->json([
+                'ok'   => true,
+                'data' => $result->toArray(),
+            ]);
+        } catch (ConnectionException $e) {
+            return $this->error(FastPayProvider::wrapConnection($e));
+        } catch (WalletException $e) {
+            return $this->error($e);
+        }
+    }
+
     public function me(Request $request, string $provider): JsonResponse
     {
         try {

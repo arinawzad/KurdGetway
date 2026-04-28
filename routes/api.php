@@ -30,6 +30,10 @@ Route::prefix('wallet')->group(function () {
         ->whereIn('provider', ['fastpay', 'fib'])
         ->name('wallet.signin');
 
+    Route::post('{provider}/verify-otp', [WalletController::class, 'verifyOtp'])
+        ->whereIn('provider', ['fastpay', 'fib'])
+        ->name('wallet.verify-otp');
+
     Route::get('{provider}/me', [WalletController::class, 'me'])
         ->whereIn('provider', ['fastpay', 'fib'])
         ->name('wallet.me');
@@ -50,6 +54,7 @@ Route::get('/', fn () => response()->json([
     'version'   => '0.1.0',
     'endpoints' => [
         'signin'       => 'POST /api/wallet/{provider}/signin',
+        'verify_otp'   => 'POST /api/wallet/{provider}/verify-otp',
         'me'           => 'GET  /api/wallet/{provider}/me',
         'transactions' => 'GET  /api/wallet/{provider}/transactions?page=1',
         'pay'          => 'POST /api/wallet/{provider}/pay',

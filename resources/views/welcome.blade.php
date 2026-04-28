@@ -310,25 +310,74 @@
                         <div class="text-amber-200/60 mt-1 text-[11px] font-mono" id="signin-otp-session"></div>
                     </div>
 
+                    {{-- OTP code input (visible only during the OTP step). 6 individual
+                         boxes give a nice mobile-keyboard UX; values are concatenated
+                         on submit. Paste support is wired up in JS. --}}
+                    <div id="signin-otp-input-wrap" class="hidden space-y-3">
+                        <div class="text-xs text-slate-300">
+                            Enter the 6-digit code sent to
+                            <span id="signin-otp-target" class="font-mono text-slate-100">your phone</span>.
+                        </div>
+                        <div class="flex justify-between gap-2" id="signin-otp-boxes">
+                            <input data-otp-index="0" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="\d"
+                                   class="otp-box w-full text-center text-lg font-mono bg-slate-900/60 border border-white/10 rounded-lg py-2.5 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40" />
+                            <input data-otp-index="1" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="\d"
+                                   class="otp-box w-full text-center text-lg font-mono bg-slate-900/60 border border-white/10 rounded-lg py-2.5 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40" />
+                            <input data-otp-index="2" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="\d"
+                                   class="otp-box w-full text-center text-lg font-mono bg-slate-900/60 border border-white/10 rounded-lg py-2.5 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40" />
+                            <input data-otp-index="3" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="\d"
+                                   class="otp-box w-full text-center text-lg font-mono bg-slate-900/60 border border-white/10 rounded-lg py-2.5 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40" />
+                            <input data-otp-index="4" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="\d"
+                                   class="otp-box w-full text-center text-lg font-mono bg-slate-900/60 border border-white/10 rounded-lg py-2.5 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40" />
+                            <input data-otp-index="5" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="\d"
+                                   class="otp-box w-full text-center text-lg font-mono bg-slate-900/60 border border-white/10 rounded-lg py-2.5 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40" />
+                        </div>
+                        <div class="flex items-center justify-between text-[11px]">
+                            <button type="button" id="signin-otp-back"
+                                    class="text-slate-400 hover:text-slate-200 inline-flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                                </svg>
+                                Use different account
+                            </button>
+                            <button type="button" id="signin-otp-resend"
+                                    class="text-fuchsia-300 hover:text-fuchsia-200">
+                                Resend code
+                            </button>
+                        </div>
+                    </div>
+
                     <div>
                         <label class="block text-xs font-medium text-slate-300 mb-1.5">Mobile number</label>
                         <input id="signin-mobile" type="tel" autocomplete="tel" spellcheck="false"
                                placeholder="+964750xxxxxxx"
-                               class="w-full bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40" />
+                               class="signin-credentials-field w-full bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40" />
                     </div>
 
                     <div>
                         <label class="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
                         <input id="signin-password" type="password" autocomplete="current-password" spellcheck="false"
-                               class="w-full bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40" />
+                               class="signin-credentials-field w-full bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40" />
                     </div>
 
-                    <div class="flex items-center gap-2 pt-1">
+                    <div class="flex items-center gap-2 pt-1 signin-credentials-field">
                         <input id="signin-remember" type="checkbox" checked
                                class="w-4 h-4 rounded border-white/20 bg-slate-900/60 text-fuchsia-500 focus:ring-fuchsia-400/40" />
                         <label for="signin-remember" class="text-xs text-slate-400 select-none">
                             Remember mobile number on this browser
                         </label>
+                    </div>
+
+                    {{-- Escape hatch for the FastPay 5-minute rate limit:
+                         if you already received an OTP from a prior attempt,
+                         skip /signin entirely and go straight to entering the
+                         code. The credentials still need to be filled in so
+                         /verify-otp gets the same envelope FastPay expects. --}}
+                    <div class="signin-credentials-field text-center pt-1">
+                        <button type="button" id="signin-have-code"
+                                class="text-[11px] text-fuchsia-300 hover:text-fuchsia-200">
+                            Already received a code? Enter it instead →
+                        </button>
                     </div>
                 </div>
 
@@ -340,7 +389,7 @@
                     <button type="button" id="signin-submit"
                             class="inline-flex items-center gap-2 px-4 py-1.5 text-sm rounded-lg bg-gradient-to-br from-fuchsia-500 to-pink-500 hover:from-fuchsia-400 hover:to-pink-400 text-white font-medium shadow-lg shadow-fuchsia-500/20">
                         <span class="signin-spinner hidden"><span class="spinner"></span></span>
-                        Sign In
+                        <span id="signin-submit-label">Sign In</span>
                     </button>
                 </div>
             </div>
@@ -595,6 +644,7 @@
             signinClose:    document.getElementById('signin-close'),
             signinCancel:   document.getElementById('signin-cancel'),
             signinSubmit:   document.getElementById('signin-submit'),
+            signinSubmitLabel: document.getElementById('signin-submit-label'),
             signinDevice:   document.getElementById('signin-device-display'),
             signinError:    document.getElementById('signin-error'),
             signinErrorMsg: document.getElementById('signin-error-message'),
@@ -604,6 +654,13 @@
             signinMobile:   document.getElementById('signin-mobile'),
             signinPassword: document.getElementById('signin-password'),
             signinRemember: document.getElementById('signin-remember'),
+            signinCredFields:    document.querySelectorAll('.signin-credentials-field'),
+            signinOtpInputWrap:  document.getElementById('signin-otp-input-wrap'),
+            signinOtpTarget:     document.getElementById('signin-otp-target'),
+            signinOtpBoxes:      document.querySelectorAll('#signin-otp-boxes input'),
+            signinOtpBack:       document.getElementById('signin-otp-back'),
+            signinOtpResend:     document.getElementById('signin-otp-resend'),
+            signinHaveCode:      document.getElementById('signin-have-code'),
 
             // result modal
             modal:        document.getElementById('modal'),
@@ -964,11 +1021,105 @@
         // ============================================================
         // SIGN-IN flow
         // ============================================================
+        // Two-step UX:
+        //   step = 'credentials' → user types mobile + password → POST /signin
+        //     ⤷ if same device  → token returned, we're done.
+        //     ⤷ if new device   → backend returns otp_required (+ session id)
+        //                          → we switch to step 'otp'.
+        //   step = 'otp'         → user types 6 digits → POST /verify-otp
+        //                          → final token returned.
+        let signinStep              = 'credentials';   // 'credentials' | 'otp'
+        let signinPendingOtpSession = null;            // temp token from /signin
+        let signinPendingMobile     = null;            // remembered for /verify-otp
+        let signinPendingPassword   = null;            // remembered for /verify-otp
+
+        function setSignInStep(step) {
+            signinStep = step;
+            const isOtp = step === 'otp';
+
+            // Toggle credentials fields vs OTP box wrap.
+            els.signinCredFields.forEach(el => el.classList.toggle('hidden', isOtp));
+            els.signinOtpInputWrap.classList.toggle('hidden', !isOtp);
+
+            // Submit button label tracks the step.
+            els.signinSubmitLabel.textContent = isOtp ? 'Verify' : 'Sign In';
+
+            if (isOtp) {
+                // Mask mobile for the "sent to" line: keep last 4 digits.
+                const mob = signinPendingMobile || '';
+                const masked = mob.length > 4
+                    ? mob.slice(0, -4).replace(/\d/g, '•') + mob.slice(-4)
+                    : mob;
+                els.signinOtpTarget.textContent = masked || 'your phone';
+
+                // Reset boxes and focus first.
+                els.signinOtpBoxes.forEach(b => { b.value = ''; });
+                setTimeout(() => els.signinOtpBoxes[0]?.focus(), 50);
+            } else {
+                // Returning to credentials: clear pending state.
+                signinPendingOtpSession = null;
+            }
+        }
+
+        function readOtpCode() {
+            return Array.from(els.signinOtpBoxes).map(b => b.value).join('');
+        }
+
+        // ----- 6-box OTP input UX -----
+        els.signinOtpBoxes.forEach((box, idx) => {
+            box.addEventListener('input', (e) => {
+                // Strip non-digits and keep only the last char (handles
+                // mobile keyboards that auto-suggest the full code).
+                const digits = e.target.value.replace(/\D/g, '');
+                e.target.value = digits.slice(-1);
+
+                if (e.target.value && idx < els.signinOtpBoxes.length - 1) {
+                    els.signinOtpBoxes[idx + 1].focus();
+                }
+
+                // Auto-submit when all 6 digits are filled.
+                if (readOtpCode().length === els.signinOtpBoxes.length) {
+                    doVerifyOtp();
+                }
+            });
+
+            box.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+                    els.signinOtpBoxes[idx - 1].focus();
+                    els.signinOtpBoxes[idx - 1].value = '';
+                    e.preventDefault();
+                } else if (e.key === 'ArrowLeft' && idx > 0) {
+                    els.signinOtpBoxes[idx - 1].focus();
+                    e.preventDefault();
+                } else if (e.key === 'ArrowRight' && idx < els.signinOtpBoxes.length - 1) {
+                    els.signinOtpBoxes[idx + 1].focus();
+                    e.preventDefault();
+                } else if (e.key === 'Enter') {
+                    doVerifyOtp();
+                }
+            });
+
+            box.addEventListener('paste', (e) => {
+                const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+                const digits = text.replace(/\D/g, '').slice(0, els.signinOtpBoxes.length);
+                if (!digits) return;
+                e.preventDefault();
+                els.signinOtpBoxes.forEach((b, i) => { b.value = digits[i] || ''; });
+                const focusIdx = Math.min(digits.length, els.signinOtpBoxes.length - 1);
+                els.signinOtpBoxes[focusIdx].focus();
+                if (digits.length === els.signinOtpBoxes.length) doVerifyOtp();
+            });
+        });
+
         function openSignInModal() {
             paintDeviceId();
             els.signinError.classList.add('hidden');
             els.signinOtp.classList.add('hidden');
             els.signinPassword.value = '';
+            signinPendingOtpSession = null;
+            signinPendingMobile = null;
+            signinPendingPassword = null;
+            setSignInStep('credentials');
             els.signinModal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             setTimeout(() => {
@@ -984,17 +1135,113 @@
         els.signinCancel.addEventListener('click', closeSignInModal);
         els.signinBackdrop.addEventListener('click', closeSignInModal);
 
+        // "Use different account" → back to credentials step.
+        els.signinOtpBack.addEventListener('click', () => {
+            els.signinError.classList.add('hidden');
+            els.signinOtp.classList.add('hidden');
+            setSignInStep('credentials');
+        });
+
+        // "Resend code" → re-run /signin with the saved credentials.
+        els.signinOtpResend.addEventListener('click', async () => {
+            if (!signinPendingMobile || !signinPendingPassword) {
+                setSignInStep('credentials');
+                return;
+            }
+            // Stay on the OTP step but show a transient "resending…" hint.
+            const prevLabel = els.signinOtpResend.textContent;
+            els.signinOtpResend.textContent = 'Resending…';
+            els.signinOtpResend.disabled = true;
+            try {
+                await postSignIn({
+                    mobile:   signinPendingMobile,
+                    password: signinPendingPassword,
+                    silent:   true,   // don't switch UI on success/failure
+                });
+                toast('Code resent');
+            } finally {
+                els.signinOtpResend.textContent = prevLabel;
+                els.signinOtpResend.disabled = false;
+            }
+        });
+
+        // "Already received a code?" — manual jump to OTP step. Useful when
+        // FastPay's 5-minute rate-limit blocks a fresh /signin but the OTP
+        // from an earlier attempt is still in the user's SMS inbox.
+        els.signinHaveCode.addEventListener('click', () => {
+            const mobile   = els.signinMobile.value.trim();
+            const password = els.signinPassword.value;
+            if (!mobile || !password) {
+                els.signinError.classList.remove('hidden');
+                els.signinErrorMsg.textContent = 'Please type your mobile number and password first.';
+                return;
+            }
+            els.signinError.classList.add('hidden');
+            signinPendingMobile     = mobile;
+            signinPendingPassword   = password;
+            // We don't have a session token — verify-otp will go through with
+            // an empty Bearer header (matching the pre-auth client signature).
+            signinPendingOtpSession = null;
+            setSignInStep('otp');
+        });
+
+        // Heuristic: does this upstream error mean "an OTP is still pending
+        // and you should just enter it"? FastPay's exact wording varies.
+        function looksLikeOtpRateLimit(msg) {
+            if (!msg) return false;
+            const m = String(msg).toLowerCase();
+            return /\b(wait|minute|too many|already|generate another|resend)\b/.test(m)
+                && m.includes('otp');
+        }
+
         function setSignInLoading(loading) {
             els.signinSubmit.disabled = loading;
             els.signinSubmit.classList.toggle('opacity-60', loading);
             els.signinSubmit.querySelector('.signin-spinner').classList.toggle('hidden', !loading);
         }
 
+        /**
+         * Single submit handler routed by step. Click "Sign In" while in
+         * 'credentials' step → doSignIn. Click while in 'otp' step → doVerifyOtp.
+         */
+        function onSignInSubmit() {
+            if (signinStep === 'otp') doVerifyOtp();
+            else                       doSignIn();
+        }
+
+        /**
+         * Low-level: POST /signin and return the parsed JSON envelope.
+         * Pulled out so the Resend button can reuse it without redoing the
+         * UI state-machine.
+         */
+        async function postSignIn({ mobile, password, silent = false }) {
+            const provider = els.provider.value;
+            const deviceId = getOrCreateDeviceId();
+
+            if (!silent) setSignInLoading(true);
+            let res, parsed;
+            try {
+                res = await fetch(`/api/wallet/${provider}/signin`, {
+                    method: 'POST',
+                    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mobile_number: mobile,
+                        password:      password,
+                        device_id:     deviceId,
+                    }),
+                });
+                const text = await res.text();
+                try { parsed = text ? JSON.parse(text) : null; } catch { parsed = { raw: text }; }
+            } finally {
+                if (!silent) setSignInLoading(false);
+            }
+            return { res, parsed };
+        }
+
         async function doSignIn() {
             const mobile   = els.signinMobile.value.trim();
             const password = els.signinPassword.value;
             const provider = els.provider.value;
-            const deviceId = getOrCreateDeviceId();
 
             els.signinError.classList.add('hidden');
             els.signinOtp.classList.add('hidden');
@@ -1011,20 +1258,109 @@
                 localStorage.removeItem(MOBILE_KEY);
             }
 
-            // FastPay only needs the Bearer token — no extra headers required.
-            const headers = { 'Content-Type': 'application/json' };
-
-            setSignInLoading(true);
+            // Stash for verify-otp / resend.
+            signinPendingMobile   = mobile;
+            signinPendingPassword = password;
 
             let res, parsed;
             try {
-                res = await fetch(`/api/wallet/${provider}/signin`, {
+                ({ res, parsed } = await postSignIn({ mobile, password }));
+            } catch (e) {
+                els.signinError.classList.remove('hidden');
+                els.signinErrorMsg.textContent = 'Network error: ' + (e.message || e);
+                return;
+            }
+
+            if (!res.ok || parsed?.ok === false) {
+                const msg = parsed?.error?.message || parsed?.message || `HTTP ${res.status}`;
+                els.signinError.classList.remove('hidden');
+                els.signinErrorMsg.textContent = msg;
+
+                // FastPay rate-limited the OTP generation — but a previously
+                // sent OTP is probably still valid. Switch to the OTP step
+                // automatically so the user can just type that earlier code.
+                if (looksLikeOtpRateLimit(msg)) {
+                    signinPendingOtpSession = null;
+                    setSignInStep('otp');
+                }
+                return;
+            }
+
+            const result = parsed?.data || {};
+
+            if (result.status === 'token' && result.token) {
+                // Same-device path — done.
+                els.token.value = result.token;
+                persistConfigMaybe();
+                closeSignInModal();
+                toast('Signed in — token saved');
+                resetModalBody();
+                openModal({
+                    title: 'Sign-in successful',
+                    subtitle: `POST /api/wallet/${provider}/signin · ${res.status}`,
+                    status: 'ok',
+                });
+                showRaw(parsed);
+                return;
+            }
+
+            if (result.status === 'otp_required') {
+                // New-device path — switch to OTP step.
+                signinPendingOtpSession = result.otp_session_id || null;
+                els.signinOtp.classList.remove('hidden');
+                els.signinOtpMsg.textContent = result.message
+                    || "FastPay didn't recognize this device. An OTP has likely been sent to your phone.";
+                els.signinOtpSess.textContent = signinPendingOtpSession
+                    ? `Session token captured (…${signinPendingOtpSession.slice(-12)})`
+                    : '';
+                setSignInStep('otp');
+                return;
+            }
+
+            // Unknown shape — surface raw JSON so the user can inspect.
+            closeSignInModal();
+            resetModalBody();
+            openModal({
+                title: 'Sign-in returned an unrecognized payload',
+                subtitle: `POST /api/wallet/${provider}/signin · ${res.status}`,
+                status: 'err',
+            });
+            showError("Couldn't classify response", 'See raw payload below.');
+            showRaw(parsed);
+        }
+
+        async function doVerifyOtp() {
+            const otp      = readOtpCode();
+            const provider = els.provider.value;
+            const deviceId = getOrCreateDeviceId();
+
+            els.signinError.classList.add('hidden');
+
+            if (otp.length !== els.signinOtpBoxes.length) {
+                els.signinError.classList.remove('hidden');
+                els.signinErrorMsg.textContent = 'Please enter all 6 digits.';
+                return;
+            }
+            if (!signinPendingMobile || !signinPendingPassword) {
+                // Edge case: refreshed/reopened modal. Send them back to step 1.
+                setSignInStep('credentials');
+                els.signinError.classList.remove('hidden');
+                els.signinErrorMsg.textContent = 'Session expired. Please sign in again.';
+                return;
+            }
+
+            setSignInLoading(true);
+            let res, parsed;
+            try {
+                res = await fetch(`/api/wallet/${provider}/verify-otp`, {
                     method: 'POST',
-                    headers: { Accept: 'application/json', ...headers },
+                    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        mobile_number: mobile,
-                        password:      password,
-                        device_id:     deviceId,
+                        mobile_number:  signinPendingMobile,
+                        password:       signinPendingPassword,
+                        device_id:      deviceId,
+                        otp:            otp,
+                        otp_session_id: signinPendingOtpSession,
                     }),
                 });
                 const text = await res.text();
@@ -1041,50 +1377,42 @@
                 const msg = parsed?.error?.message || parsed?.message || `HTTP ${res.status}`;
                 els.signinError.classList.remove('hidden');
                 els.signinErrorMsg.textContent = msg;
+                // Clear the boxes so the user can retry without backspacing.
+                els.signinOtpBoxes.forEach(b => { b.value = ''; });
+                els.signinOtpBoxes[0]?.focus();
                 return;
             }
 
             const result = parsed?.data || {};
+
             if (result.status === 'token' && result.token) {
-                // Hand the token to the config card and persist if asked
                 els.token.value = result.token;
                 persistConfigMaybe();
                 closeSignInModal();
-                toast('Signed in — token saved');
-                // Pop the result modal so the user sees the raw payload
+                toast('Verified — token saved');
                 resetModalBody();
                 openModal({
-                    title: 'Sign-in successful',
-                    subtitle: `POST /api/wallet/${provider}/signin · ${res.status}`,
+                    title: 'OTP verified — signed in',
+                    subtitle: `POST /api/wallet/${provider}/verify-otp · ${res.status}`,
                     status: 'ok',
                 });
                 showRaw(parsed);
                 return;
             }
 
-            if (result.status === 'otp_required') {
-                els.signinOtp.classList.remove('hidden');
-                els.signinOtpMsg.textContent = result.message
-                    || 'FastPay didn\'t recognize this device. An OTP has likely been sent to your phone.';
-                els.signinOtpSess.textContent = result.otp_session_id
-                    ? `Session: ${result.otp_session_id}`
-                    : '';
-                return;
-            }
-
-            // Unknown shape — surface raw JSON so the user can inspect.
+            // Should not happen on a 200, but stay defensive.
             closeSignInModal();
             resetModalBody();
             openModal({
-                title: 'Sign-in returned an unrecognized payload',
-                subtitle: `POST /api/wallet/${provider}/signin · ${res.status}`,
+                title: 'Verify-OTP returned an unrecognized payload',
+                subtitle: `POST /api/wallet/${provider}/verify-otp · ${res.status}`,
                 status: 'err',
             });
-            showError('Couldn\'t classify response', 'See raw payload below.');
+            showError("Couldn't extract token", result.message || 'See raw payload below.');
             showRaw(parsed);
         }
 
-        els.signinSubmit.addEventListener('click', doSignIn);
+        els.signinSubmit.addEventListener('click', onSignInSubmit);
         els.signinPassword.addEventListener('keydown', e => { if (e.key === 'Enter') doSignIn(); });
         els.signinMobile.addEventListener('keydown',   e => { if (e.key === 'Enter') doSignIn(); });
 

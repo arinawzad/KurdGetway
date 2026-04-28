@@ -38,6 +38,26 @@ interface WalletProvider
     ): SignInResult;
 
     /**
+     * Complete two-factor sign-in by submitting the 6-digit OTP that the
+     * upstream wallet just sent to the user's phone.
+     *
+     * Mobile, password and device_id are re-sent because FastPay's
+     * /verify-otp endpoint expects the same envelope as /check-same-device,
+     * plus the OTP. The optional $otpSessionToken is the temporary JWT that
+     * was returned alongside `is_same_device: false` on the previous step;
+     * FastPay validates it as `Authorization: Bearer ...` on verify-otp.
+     *
+     * @throws \App\Services\Wallet\Exceptions\WalletException
+     */
+    public function verifyOtp(
+        string $mobileNumber,
+        string $password,
+        string $deviceId,
+        string $otp,
+        ?string $otpSessionToken = null,
+    ): SignInResult;
+
+    /**
      * Fetch the authenticated user's basic information & primary balance.
      *
      * @throws \App\Services\Wallet\Exceptions\WalletException on upstream

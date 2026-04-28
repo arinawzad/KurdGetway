@@ -99,6 +99,54 @@ class FastPayProvider implements WalletProvider
         return $this->classifySignIn($data);
     }
 
+    /**
+     * POST /api/v{login_api_version}/auth/signin/verify-otp
+     *
+     * Body (form-urlencoded):
+     *   device_id      = same UUID we used on /check-same-device
+     *   mobile_number  = E.164 with leading + (e.g. "+9647509646550")
+     *   otp            = 6-digit code from SMS
+     *   password       = same plaintext password
+     *
+     * Authorization: when /check-same-device returns is_same_device:false
+     * FastPay also returns a temporary JWT in `data.token`. That JWT is
+     * meant to be presented as `Authorization: Bearer ...` on /verify-otp.
+     * We accept it as $otpSessionToken; if absent, fall back to an empty
+     * Bearer to match the pre-auth client signature.
+     *
+     * Successful response: data.token = the FINAL user token. We hand it
+     * back wrapped in a SignInResult with STATUS_TOKEN.
+     */
+    public function verifyOtp(
+        string $mobileNumber,
+        string $password,
+        string $deviceId,
+        string $otp,
+        ?string $otpSessionToken = null,
+    ): SignInResult {
+        $version = $this->config['login_api_version'] ?? 'v2';
+        $path    = "/api/{$version}/auth/signin/verify-otp";
+
+        $request = $this->http
+            ->baseUrl($this->config['base_url'])
+            ->timeout($this->config['timeout'] ?? 15)
+            ->acceptJson()
+            ->asForm()
+            ->withToken($otpSessionToken ?: '')
+            ->withHeaders($this->buildHeaders());
+
+        $response = $request->post($path, [
+            'device_id'     => $deviceId,
+            'mobile_number' => $mobileNumber,
+            'otp'           => $otp,
+            'password'      => $password,
+        ]);
+
+        $data = $this->unwrap($response);
+
+        return $this->classifyVerifyOtp($data);
+    }
+
     public function basicInformation(Credentials $credentials): WalletUser
     {
         $version = $this->config['api_version'] ?? 'v1';
@@ -260,12 +308,93 @@ class FastPayProvider implements WalletProvider
 
     /**
      * Walk a known set of likely keys to figure out whether FastPay handed us
-     * a token outright or asked for OTP. We look in a few places because the
-     * upstream isn't super consistent across endpoint versions.
+     * a final auth token, a temporary OTP-session token, or asked for OTP.
+     *
+     * Important nuance: when FastPay returns `is_same_device: false`, it ALSO
+     * returns a JWT in `data.token`. That JWT is NOT a final auth token — it's
+     * a temporary one, scoped to the verify-otp call. So if we see ANY OTP
+     * signal, we classify as OTP_REQUIRED and stash the JWT as the session id.
+     * Only when no OTP signal is present do we treat `data.token` as the
+     * final user token.
      *
      * @param array<string, mixed> $data
      */
     private function classifySignIn(array $data): SignInResult
+    {
+        $token = $data['token']
+            ?? $data['access_token']
+            ?? $data['bearer_token']
+            ?? $data['user']['token']
+            ?? null;
+        $tokenString = is_string($token) && $token !== '' ? $token : null;
+
+        // Common shapes signaling "we just sent you an OTP":
+        //   { is_same_device: false, token: "tmp_jwt..." }
+        //   { otp_required: true, session_id: "..." }
+        //   { step: "otp", token: "tmp..." }
+        $otpRequired = ($data['otp_required'] ?? null) === true
+            || ($data['is_same_device'] ?? null) === false
+            || ($data['same_device']    ?? null) === false
+            || ($data['step'] ?? null)   === 'otp';
+
+        $explicitSession = $data['otp_session_id']
+            ?? $data['session_id']
+            ?? $data['otp_token']
+            ?? $data['otp_reference']
+            ?? null;
+
+        if ($otpRequired) {
+            return new SignInResult(
+                provider: $this->name(),
+                status: SignInResult::STATUS_OTP_REQUIRED,
+                otpSessionId: $explicitSession ? (string) $explicitSession : $tokenString,
+                message: $data['message'] ?? 'OTP verification required for this device.',
+                raw: $data,
+            );
+        }
+
+        if ($tokenString !== null) {
+            return new SignInResult(
+                provider: $this->name(),
+                status: SignInResult::STATUS_TOKEN,
+                token: $tokenString,
+                message: $data['message'] ?? 'Signed in successfully.',
+                raw: $data,
+            );
+        }
+
+        if ($explicitSession) {
+            return new SignInResult(
+                provider: $this->name(),
+                status: SignInResult::STATUS_OTP_REQUIRED,
+                otpSessionId: (string) $explicitSession,
+                message: $data['message'] ?? 'OTP verification required for this device.',
+                raw: $data,
+            );
+        }
+
+        // Don't pretend to know what we got — let the caller see the payload.
+        return new SignInResult(
+            provider: $this->name(),
+            status: SignInResult::STATUS_UNKNOWN,
+            message: $data['message'] ?? null,
+            raw: $data,
+        );
+    }
+
+    /**
+     * Classify the response from /verify-otp.
+     *
+     * On success FastPay returns:
+     *   { code: 200, data: { token: "...", is_same_device: false } }
+     *
+     * Note `is_same_device: false` here is descriptive, not a request to do
+     * OTP again — the verification just finished. So unlike classifySignIn,
+     * we treat the presence of `data.token` as the canonical success signal.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function classifyVerifyOtp(array $data): SignInResult
     {
         $token = $data['token']
             ?? $data['access_token']
@@ -283,36 +412,10 @@ class FastPayProvider implements WalletProvider
             );
         }
 
-        // Common shapes signaling "we just sent you an OTP":
-        //   { is_same_device: false, otp_session_id: "..." }
-        //   { otp_required: true, session_id: "..." }
-        //   { step: "otp", token: "tmp..." }
-        $otpRequired = ($data['otp_required'] ?? null) === true
-            || ($data['is_same_device'] ?? null) === false
-            || ($data['same_device']    ?? null) === false
-            || ($data['step'] ?? null)   === 'otp';
-
-        $otpSessionId = $data['otp_session_id']
-            ?? $data['session_id']
-            ?? $data['otp_token']
-            ?? $data['otp_reference']
-            ?? null;
-
-        if ($otpRequired || $otpSessionId) {
-            return new SignInResult(
-                provider: $this->name(),
-                status: SignInResult::STATUS_OTP_REQUIRED,
-                otpSessionId: $otpSessionId ? (string) $otpSessionId : null,
-                message: $data['message'] ?? 'OTP verification required for this device.',
-                raw: $data,
-            );
-        }
-
-        // Don't pretend to know what we got — let the caller see the payload.
         return new SignInResult(
             provider: $this->name(),
             status: SignInResult::STATUS_UNKNOWN,
-            message: $data['message'] ?? null,
+            message: $data['message'] ?? 'OTP verification did not return a token.',
             raw: $data,
         );
     }
