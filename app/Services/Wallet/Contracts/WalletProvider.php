@@ -83,7 +83,7 @@ interface WalletProvider
      * accept it (FastPay typically rejects sending to your own number), but
      * we don't second-guess the caller.
      *
-     * @param string $recipientMobile  E.164 with leading + (e.g. "+9647509646550").
+     * @param string $recipientMobile  E.164 with leading + (e.g. "+964750xxxxxxx").
      * @param string $amount           Stringified to avoid float precision loss.
      *                                 Provider decides minor units / formatting.
      * @param string|null $note        Free-form memo, optional.

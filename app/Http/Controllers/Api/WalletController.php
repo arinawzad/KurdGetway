@@ -31,7 +31,7 @@ class WalletController extends Controller
      * POST /api/wallet/{provider}/signin
      *
      * Body (JSON or form):
-     *   mobile_number  required, e.g. "+9647509646550"
+     *   mobile_number  required, e.g. "+964750xxxxxxx"
      *   password       required
      *   device_id      required, client-generated UUID kept on the device.
      *                  Same UUID across logins → same-device path → token.
@@ -153,7 +153,7 @@ class WalletController extends Controller
      * POST /api/wallet/{provider}/pay
      *
      * Body (JSON or form):
-     *   recipient_mobile  required, E.164 with leading + (e.g. "+9647509646550")
+     *   recipient_mobile  required, E.164 with leading + (e.g. "+964750xxxxxxx")
      *   amount            required, numeric (string or number; serialized as string)
      *   note              optional, free-form memo
      *

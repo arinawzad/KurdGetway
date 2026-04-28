@@ -104,7 +104,7 @@ class FastPayProvider implements WalletProvider
      *
      * Body (form-urlencoded):
      *   device_id      = same UUID we used on /check-same-device
-     *   mobile_number  = E.164 with leading + (e.g. "+9647509646550")
+     *   mobile_number  = E.164 with leading + (e.g. "+964750xxxxxxx")
      *   otp            = 6-digit code from SMS
      *   password       = same plaintext password
      *
@@ -221,7 +221,7 @@ class FastPayProvider implements WalletProvider
      * POST /api/v{api_version}/{endpoints.send_money}
      *
      * Body shape (form-encoded; FastPay uses form for write endpoints):
-     *   mobile_number  : E.164 recipient (e.g. +9647509646550)
+     *   mobile_number  : E.164 recipient (e.g. +964750xxxxxxx)
      *   amount         : numeric string (IQD)
      *   purpose / note : optional memo
      *

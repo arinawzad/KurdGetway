@@ -108,7 +108,7 @@ Mint a fresh token, or detect that an OTP step is required.
 
 | Field           | Required | Notes                                                       |
 |-----------------|----------|-------------------------------------------------------------|
-| `mobile_number` | yes      | E.164 with leading `+`, e.g. `+9647509646550`               |
+| `mobile_number` | yes      | E.164 with leading `+`, e.g. `+964750xxxxxxx`               |
 | `password`      | yes      | Plaintext — the upstream hashes server-side                 |
 | `device_id`     | yes      | Client-generated UUID, persist on the device                |
 
